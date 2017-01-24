@@ -5,46 +5,59 @@
 #include"compare.h"
 using namespace std;
 
-typedef void(*func_ptr)(void *);
-
 template <class A>
 class BinarySearchTree {
 public:
 	BinarySearchTree() {
 		root = nullptr;
 		size = 0;
-		orderList = new vector<BinarySearchTree<A*>>;
+		orderList = new vector<BinaryTreeNode<A>*>;
 	}
 
 	~BinarySearchTree() {
-		for (int i = 0; i < orderList->size(); i++) {
-			delete orderList->pop_back();
+		if ((int)(orderList->size()) != size) {
+			orderList->clear();
+			preOrder();
 		}
+		int list_size = (int)(orderList->size());
+		for (int i = 0; i < list_size; i++) {
+			BinaryTreeNode<A> *temp = (BinaryTreeNode<A> *)(orderList->back());
+			orderList->pop_back();
+			delete temp;
+		}
+		delete orderList;
 	}
 
-	void setCompare(compare_func *);
-	void setOrderFunc(func_ptr)
+	void setCompare(compare_func<A> *);
 	void add(A);
 	bool remove(A);
 	bool search(A);
-	vector<BinarySearchTree<A>*> preOrder();
-	vector<BinarySearchTree<A>*> postOrder();
-	vector<BinarySearchTree<A>*> inOrder();
+	vector<BinaryTreeNode<A>*> *preOrder();
+	vector<BinaryTreeNode<A>*> *postOrder();
+	vector<BinaryTreeNode<A>*> *inOrder();
 	bool isEmpty();
 	int getSize();
 
 private:
+	struct target_branch {
+		friend void BinarySearchTree<A>::searchBranch(target_branch *);
+		friend void BinarySearchTree<A>::add(BinaryTreeNode<A> *);
+		BinaryTreeNode<A> *target;
+		BinaryTreeNode<A> *node;
+		bool left_target;
+	};
 	BinaryTreeNode<A> *root;
 	int size;
-	vector<BinarySearchTree<A>*> *orderList;
-	compare_func *cp;
+	vector<BinaryTreeNode<A>*> *orderList;
+	void searchBranch(target_branch *);
+	compare_func<A> *cp;
 	void add(BinaryTreeNode<A> *);
 	void preOrder(BinaryTreeNode<A> *);
 	void postOrder(BinaryTreeNode<A> *);
 	void inOrder(BinaryTreeNode<A> *);
 };
 
-template <class A> void BinarySearchTree<A>::setCompare(compare_func *cp_param) {
+template <class A> void BinarySearchTree<A>::setCompare(compare_func<A> *cp_param) {
 	cp = cp_param;
 }
 
@@ -53,29 +66,20 @@ template <class A> void BinarySearchTree<A>::add(BinaryTreeNode<A> *node) {
 		cout << "Null object parameter!";
 		return;
 	}
-	BinaryTreeNode<A> *temp = root;
-	BinaryTreeNode<A> *temp_parent;
-	bool insert_left = true;
-	while (temp != nullptr) {
-		temp_parent = temp;
-		if (cp->compare(node->data, temp->data) == compare_func<A>::GREATER) {
-			temp = temp->right;
-			insert_left = false;
-		}
-		else if (cp->compare(node->data, temp->data) == compare_func<A>::SMALLER) {
-			temp = temp->left;
-			insert_left = true;
-		}
-		else {
-			return;
-		}
+	if (root == nullptr) {
+		size++;
+		root = node;
+		return;
 	}
+	target_branch branch;
+	branch.node = node;
+	searchBranch(&branch);
 	size++;
-	if (insert_left) {
-		temp_parent->left = node;
+	if (branch.left_target) {
+		branch.target->left = node;
 	}
 	else {
-		temp_parent->right = node;
+		branch.target->right = node;
 	}
 }
 
@@ -91,12 +95,34 @@ template <class A> bool BinarySearchTree<A>::search(A element) {
 
 }
 
-template <class A> vector<BinarySearchTree<A>*> BinarySearchTree<A>::preOrder() {
-	if (root == null) {
-		return;
+template <class A> vector<BinaryTreeNode<A>*> *BinarySearchTree<A>::preOrder() {
+	if (root == nullptr) {
+		return nullptr;
+	}
+	if (!orderList->empty()) {
+		orderList->clear();
 	}
 	preOrder(root);
 	return orderList;
+}
+
+template <class A> void BinarySearchTree<A>::searchBranch(target_branch *branch) {
+	BinaryTreeNode<A> *temp = root;
+	BinaryTreeNode<A> *node = branch->node;
+	do {
+		branch->target = temp;
+		if (cp->compare(node->data, temp->data) == compare_func<A>::GREATER) {
+			temp = temp->right;
+			branch->left_target = false;
+		}
+		else if (cp->compare(node->data, temp->data) == compare_func<A>::SMALLER) {
+			temp = temp->left;
+			branch->left_target = false;
+		}
+		else {
+			return;
+		}
+	} while (temp != nullptr);
 }
 
 template <class A> void BinarySearchTree<A>::preOrder(BinaryTreeNode<A> *node) {
@@ -104,17 +130,14 @@ template <class A> void BinarySearchTree<A>::preOrder(BinaryTreeNode<A> *node) {
 	if (node->left != nullptr) {
 		preOrder(node->left);
 	}
-	if (!orderList->empty()) {
-		orderList->clear();
-	}
 	if (node->right != nullptr) {
 		preOrder(node->right);
 	}
 }
 
-template <class A> vector<BinarySearchTree<A>*> BinarySearchTree<A>::postOrder() {
-	if (root == null) {
-		return;
+template <class A> vector<BinaryTreeNode<A>*> *BinarySearchTree<A>::postOrder() {
+	if (root == nullptr) {
+		return nullptr;
 	}
 	if (!orderList->empty()) {
 		orderList->clear();
@@ -133,9 +156,9 @@ template <class A> void BinarySearchTree<A>::postOrder(BinaryTreeNode<A> *node) 
 	orderList->push_back(node);
 }
 
-template <class A> vector<BinarySearchTree<A>*> BinarySearchTree<A>::inOrder() {
-	if (root == null) {
-		return;
+template <class A> vector<BinaryTreeNode<A>*> *BinarySearchTree<A>::inOrder() {
+	if (root == nullptr) {
+		return nullptr;
 	}
 	if (!orderList->empty()) {
 		orderList->clear();
