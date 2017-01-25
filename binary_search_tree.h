@@ -39,19 +39,10 @@ public:
 	int getSize();
 
 private:
-	struct target_branch {
-		friend void BinarySearchTree<A>::searchBranch(target_branch *);
-		friend void BinarySearchTree<A>::add(BinaryTreeNode<A> *);
-		BinaryTreeNode<A> *target;
-		BinaryTreeNode<A> *node;
-		bool left_target;
-	};
 	BinaryTreeNode<A> *root;
 	int size;
 	vector<BinaryTreeNode<A>*> *orderList;
-	void searchBranch(target_branch *);
 	compare_func<A> *cp;
-	void add(BinaryTreeNode<A> *);
 	void preOrder(BinaryTreeNode<A> *);
 	void postOrder(BinaryTreeNode<A> *);
 	void inOrder(BinaryTreeNode<A> *);
@@ -61,38 +52,165 @@ template <class A> void BinarySearchTree<A>::setCompare(compare_func<A> *cp_para
 	cp = cp_param;
 }
 
-template <class A> void BinarySearchTree<A>::add(BinaryTreeNode<A> *node) {
-	if (node == nullptr) {
-		cout << "Null object parameter!";
-		return;
-	}
+template <class A> void BinarySearchTree<A>::add(A element) {
 	if (root == nullptr) {
 		size++;
-		root = node;
+		root = new BinaryTreeNode<A>(element);
 		return;
 	}
-	target_branch branch;
-	branch.node = node;
-	searchBranch(&branch);
+	BinaryTreeNode<A> *temp = root;
+	BinaryTreeNode<A> *target;
+	bool take_left;
+	do {
+		target = temp;
+		if (cp->compare(element, temp->data) == compare_unit::GREATER) {
+			temp = temp->right;
+			take_left = false;
+		}
+		else if (cp->compare(element, temp->data) == compare_unit::SMALLER) {
+			temp = temp->left;
+			take_left = true;
+		}
+		else {
+			cout << "Duplicate data detected!\n";
+			return;
+		}
+	} while (temp != nullptr);
 	size++;
-	if (branch.left_target) {
-		branch.target->left = node;
+	BinaryTreeNode<A> *node = new BinaryTreeNode<A>(element);
+	node->parent = target;
+	if (take_left) {
+		target->left = node;
 	}
 	else {
-		branch.target->right = node;
+		target->right = node;
 	}
-}
-
-template <class A> void BinarySearchTree<A>::add(A element) {
-	add(new BinaryTreeNode<A>(element));
 }
 
 template <class A> bool BinarySearchTree<A>::remove(A element) {
-	
+	if (root == nullptr) {
+		return false;
+	}
+	BinaryTreeNode<A> *temp = root;
+	BinaryTreeNode<A> *target;
+	bool take_left;
+	bool equal = false;
+	do {
+		target = temp;
+		if (cp->compare(element, temp->data) == compare_unit::GREATER) {
+			temp = temp->right;
+			take_left = false;
+		}
+		else if (cp->compare(element, temp->data) == compare_unit::SMALLER) {
+			temp = temp->left;
+			take_left = true;
+		}
+		else {
+			equal = true;
+			break;
+		}
+	} while (temp != nullptr);
+	if (!equal) {
+		cout << "No such element found!";
+		return false;
+	}
+	size--;
+	if (target->left == nullptr && target->right == nullptr) {
+		if (target == root) {
+			delete root;
+		}
+		else {
+			if (take_left) {
+				target->parent->left = nullptr;
+			}
+			else {
+				target->parent->right = nullptr;
+			}
+			target->parent = nullptr;
+			delete target;
+		}
+	}
+	else if (target->right != nullptr) {
+		BinaryTreeNode<A> *prev = nullptr;
+		temp = target->right;
+		do {
+			prev = temp;
+			temp = temp->left;
+		} while (temp != nullptr);
+		target->data = prev->data;
+		if (prev == target->right) {
+			if (prev->right != nullptr) {
+				prev->right->parent = prev->parent;
+				prev->parent->right = prev->right;
+			}
+			else {
+				prev->parent->right = nullptr;
+			}
+		}
+		else {
+			if (prev->right != nullptr) {
+				prev->parent->left = prev->right;
+				prev->right->parent = prev->parent;
+			}
+			else {
+				prev->parent->left = nullptr;
+			}
+		}
+		prev->parent = nullptr;
+		delete prev;
+	}
+	else {
+		BinaryTreeNode<A> *prev = nullptr;
+		temp = target->left;
+		while (temp != nullptr) {
+			prev = temp;
+			temp = temp->right;
+		}
+		target->data = prev->data;
+		if (prev == target->left) {
+			if (prev->left != nullptr) {
+				prev->left->parent = prev->parent;
+				prev->parent->left = prev->left;
+			}
+			else {
+				prev->parent->left = nullptr;
+			}
+		}
+		else {
+			if (prev->left!= nullptr) {
+				prev->parent->right = prev->left;
+				prev->left->parent = prev->parent;
+			}
+			else {
+				prev->parent->right = nullptr;
+			}
+		}
+		prev->parent = nullptr;
+		delete prev;
+	}
+	return true;
 }
 
 template <class A> bool BinarySearchTree<A>::search(A element) {
-
+	if (root == nullptr) {
+		return false;
+	}
+	BinaryTreeNode<A> *temp = root;
+	bool take_left;
+	do {
+		if (cp->compare(element, temp->data) == compare_unit::GREATER) {
+			temp = temp->right;
+			take_left = false;
+		}
+		else if (cp->compare(element, temp->data) == compare_unit::SMALLER) {
+			temp = temp->left;
+			take_left = true;
+		}
+		else {
+			return true;
+		}
+	} while (temp != nullptr);
+	return false;
 }
 
 template <class A> vector<BinaryTreeNode<A>*> *BinarySearchTree<A>::preOrder() {
@@ -104,25 +222,6 @@ template <class A> vector<BinaryTreeNode<A>*> *BinarySearchTree<A>::preOrder() {
 	}
 	preOrder(root);
 	return orderList;
-}
-
-template <class A> void BinarySearchTree<A>::searchBranch(target_branch *branch) {
-	BinaryTreeNode<A> *temp = root;
-	BinaryTreeNode<A> *node = branch->node;
-	do {
-		branch->target = temp;
-		if (cp->compare(node->data, temp->data) == compare_func<A>::GREATER) {
-			temp = temp->right;
-			branch->left_target = false;
-		}
-		else if (cp->compare(node->data, temp->data) == compare_func<A>::SMALLER) {
-			temp = temp->left;
-			branch->left_target = false;
-		}
-		else {
-			return;
-		}
-	} while (temp != nullptr);
 }
 
 template <class A> void BinarySearchTree<A>::preOrder(BinaryTreeNode<A> *node) {
